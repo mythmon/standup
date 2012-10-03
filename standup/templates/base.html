@@ -97,6 +97,11 @@
           </nav>
         </div>
       </div>
+      <ul>
+        {% for key in session %}
+          <li>{{ key }}={{ session[key] }}</li>
+        {% endfor %}
+      </ul>
     </footer>
   </div>
 </body>

@@ -147,6 +147,7 @@ def logout():
 @app.route('/')
 def index():
     """The home page."""
+    print "Le index."
     return render_template(
         'index.html',
         statuses=_paginate(
@@ -563,7 +564,10 @@ def in_user_timezone(dt):
         if not tz_offset:
             tz_offset = 0
     else:
+        print "No user, short circuiting timezone modification."
         return dt
+
+    print "tz_offset is", tz_offset
 
     delta = timedelta(minutes=tz_offset)
 
