@@ -3,10 +3,10 @@ import hashlib
 import os, re
 from bleach import clean, linkify
 from datetime import datetime, date, timedelta
-from flask import (Flask, render_template, request, redirect, url_for,
+from functools import wraps
+from flask import (Flask, render_template, request, url_for, redirect,
                    jsonify, make_response, session)
 from flask.ext.sqlalchemy import SQLAlchemy
-from functools import wraps
 from urllib import urlencode
 
 import settings
@@ -50,6 +50,8 @@ class User(db.Model):
     team_id = db.Column(db.Integer, db.ForeignKey('team.id'))
     team = db.relationship(
         'Team', backref=db.backref('users', lazy='dynamic'))
+    # Number of minutes offset from UTC.
+    timezone_offset = db.Column(db.Integer)
 
     def __repr__(self):
         return '<User: [%s] %s>' % (self.username, self.name)
@@ -98,9 +100,15 @@ class Status(db.Model):
         return '<Status: %s: %s>' % (self.user.username, self.content)
 
     def replies(self, page=1):
-        replies = Status.query.filter(Status.reply_to_id==self.id).order_by(
-            db.asc(Status.created))
+        replies = Status.query.filter(Status.reply_to_id == self.id).order_by(
+            db.desc(Status.created))
         return _paginate(replies, page)
+
+    def apply_timezone(self, timezone_offset):
+        timezone_delta = timedelta(minutes=timezone_offset)
+        self.created += timezone_delta
+        return self
+
 
 # TODO: M2M Users <-> Projects
 
@@ -122,7 +130,7 @@ def authenticate():
     data = browserid.verify(request.form['assertion'],
                             settings.SITE_URL)
     session['email'] = data['email']
-    response = jsonify({'message':'login successful'})
+    response = jsonify({'message': 'login successful'})
     response.status_code = 200
     return response
 
@@ -131,7 +139,7 @@ def authenticate():
 def logout():
     """Log user out of app."""
     session.pop('email', None)
-    response = jsonify({'message':'logout successful'})
+    response = jsonify({'message': 'logout successful'})
     response.status_code = 200
     return response
 
@@ -220,6 +228,37 @@ def status(id):
         user=status.user,
         statuses=_paginate(statuses),
         replies=status.replies(request.args.get('page', 1))
+    )
+
+
+@app.route('/settings', methods=['GET', 'POST'])
+def user_settings():
+    """The settings page."""
+
+    if session:
+        current_user = User.query.filter(User.email == session['email']).first()
+    else:
+        current_user = None
+
+    errors = {}
+    if request.method == 'POST':
+        try:
+            timezone = float(request.form['timezone'])
+            if timezone > 24 or timezone < -24:
+                errors['timezone'] = 'Please your timezone offset in hours.'
+
+            if not errors:
+                current_user.timezone_offset = timezone * 60
+                db.session.add(current_user)
+                db.session.commit()
+                redirect(url_for('user_settings'))
+
+        except (ValueError, TypeError):
+            errors['timezone'] = 'Please enter your timezone offset in hours.'
+
+    return render_template(
+        'settings.html',
+        errors=errors,
     )
 
 
@@ -515,6 +554,22 @@ def _day(day):
     return datetime.strptime(day, '%Y-%m-%d')
 
 
+@app.template_filter('in_user_timezone')
+def in_user_timezone(dt):
+    if session:
+        user = User.query.filter(User.email == session['email']).first()
+        tz_offset = user.timezone_offset
+        # In case of None
+        if not tz_offset:
+            tz_offset = 0
+    else:
+        return dt
+
+    delta = timedelta(minutes=tz_offset)
+
+    return dt + delta
+
+
 @app.before_request
 def bootstrap():
     # Jinja global variables
@@ -526,14 +581,17 @@ def bootstrap():
     else:
         user = None
 
-    app.jinja_env.globals.update(projects = list(projects), teams = teams,
-                                 current_user = user, today=date.today(),
-                                 yesterday=date.today() - timedelta(1))
+    today = datetime.utcnow().date()
+    yesterday = (datetime.utcnow() - timedelta(1)).date()
+
+    app.jinja_env.globals.update(
+        projects=list(projects), teams=teams, current_user=user,
+        today=today, yesterday=yesterday)
 
 
 if __name__ == '__main__':
     db.create_all()
-    
+
     # Bind to PORT if defined, otherwise default to 5000.
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=settings.DEBUG)

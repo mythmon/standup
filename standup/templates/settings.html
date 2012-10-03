@@ -1,0 +1,18 @@
+{% from 'includes/macros.html' import status_updates %}
+
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="grid_12">
+    <h1>Settings</h1>
+
+    <form action="{{ url_for('user_settings') }}" method="POST">
+      <label for="timezone">Timezone Offset</label>
+      <input type="text" name="timezone" value="{{ current_user.timezone_offset / 60.0 }}" />
+      {% if errors['timezone'] %}
+        <span class="error">{{ errors['timezone'] }}</span>
+      {% endif %}
+      <input type="submit">
+    </form>
+  </div>
+{% endblock %}
