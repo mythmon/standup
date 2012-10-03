@@ -66,6 +66,9 @@
                 <a class="post-time" href="{{ url_for('status', id=status.id) }}">
                   <time datetime="{{ status.created|dateformat('%Y-%m-%dT%H:%M:%SZ') }}"
                     {% if current_user.timezone_offset is undefined %}localize="true"{% endif %}>
+                    {{ current_user }} |
+                    {{ current_user.timezone_offset }} |
+                    {{ current_user.timezone_offset is undefined }} |
                     {{ status.created|in_user_timezone|dateformat('%-I:%M %p') }}
                   </time>
                 </a>

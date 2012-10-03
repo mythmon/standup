@@ -13,7 +13,7 @@ $(function() {
     });
 
     navigator.id.watch({
-        loggedInEmail: currentUser,
+        loggedInUser: currentUser,
         onlogin: function(assertion) {
             $.ajax({
                 type: 'POST',
@@ -65,7 +65,7 @@ $(function() {
 /* Find all datetime objects and modify them to match the user's current
  * timezone. */
 function fixTimezones() {
-    $('timei[localize=true]').each(function(elem) {
+    $('timer[localize=true]').each(function(elem) {
         var $t = $(this);
 
         var utc_dt_str = $t.attr('datetime');

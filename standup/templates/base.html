@@ -60,7 +60,7 @@
                 {% else %}
                   <a href="#" id="user-menu"><img src="{{ session['email']|gravatar_url(size=22) }}" alt="{% if current_user %}{{ current_user.username }}{% else %}{{ session['email'] }}{% endif %}"></a>
                   <ul>
-                    <li><a href="{{ url_for('user_settings') }}" id="logout">Settings</a></li>
+                    <li><a href="{{ url_for('user_settings') }}">Settings</a></li>
                     <li><a href="#" id="logout">Sign out</a></li>
                   </ul>
                 {% endif %}
