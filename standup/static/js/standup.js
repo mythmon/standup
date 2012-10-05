@@ -60,6 +60,31 @@ $(function() {
             });
         }
     });
+
+    var last_update = new Date(document.lastModified);
+
+    /* Poll for new updates. */
+    setInterval(function pollForUpdates() {
+        $.ajax({
+            url: window.location,
+            type: 'HEAD',
+            cache: false,
+            success: function(data, status, xhr) {
+                var modified = xhr.getResponseHeader('Last-Modified');
+                modified = new Date(modified);
+                if (modified > last_update) {
+                    var notice = $('<div class="notice">There have been updates since you got here. <a href="#">Click here to reload.</a></div>')
+                        .appendTo('#main-notices');
+                    notice.children('a').on('click', window.location.reload);
+
+                    last_update = modified;
+                }
+            },
+            error: function(data, status, xhr) {
+                console.error("New status polling error: " + JSON.stringify(data));
+            }
+        });
+    }, 60 * 1000); // once per minute.
 });
 
 /* Find all datetime objects and modify them to match the user's current

@@ -136,16 +136,21 @@ def logout():
     return response
 
 
-@app.route('/')
+@app.route('/', methods=['GET', 'HEAD'])
 def index():
     """The home page."""
-    return render_template(
-        'index.html',
-        statuses=_paginate(
-            Status.query.filter(Status.reply_to==None).order_by(db.desc(Status.created)),
-            request.args.get('page', 1),
-            _startdate(request),
-            _enddate(request)),)
+    statuses = Status.query.filter(Status.reply_to == None).order_by(db.desc(Status.created))
+    statuses = _paginate(statuses, request.args.get('page', 1),
+                         _startdate(request), _enddate(request))
+
+    last_modified = statuses.items[0].created
+    last_modified = last_modified.replace(microsecond=0)
+    last_modified = last_modified.strftime('%a, %d %b %Y %H:%M:%S GMT')
+
+    resp = render_template('index.html', statuses=statuses)
+    resp = make_response(resp)
+    resp.headers['Last-Modified'] = last_modified
+    return resp
 
 
 @app.route('/help')
